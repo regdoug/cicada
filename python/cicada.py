@@ -23,9 +23,8 @@ class Cicada(object):
 
     def set_all_positions(self,position,speed):
         """Send all pins to 'position' at 'speed'"""
-        for n in range(self.num_pins):
-            self.pin[n].go_to(position,speed)
-
+        for pin in self.pins
+            pin.go_to(position,speed)
     
     def tare(self):
         """Tare the display heights"""
@@ -36,9 +35,13 @@ class Cicada(object):
         """Call this when you have a serial event.  The cicada module does not read from serial."""
         if type(signal) == bytes:
             signal = signal[0]
-        # TODO: convert signal (a binary string) to a number.
-        for n in range(self.num_pins):
-            self.pin[n].update(signal)
+        for pin in self.pin:
+            pin.update(signal)
+
+
+    def add_observer(self,observer):
+        for pin in self.pin:
+            pin.add_observer(observer) 
 
 
     def __getitem__(self,key):
@@ -68,13 +71,15 @@ class Pin(object):
 
     def position = 0
     def speed = 0
-    def button = 1
+    def button = 0
 
     def press_time = None
     def last_elapsed = 0
 
     def num_leds = 0
     def led = []
+
+    def _observers = []
 
 
     def __init__(self,num,leds,serial):
@@ -89,9 +94,9 @@ class Pin(object):
     def update(self,signal):
         """Update internal state in response to serial signal"""
         if self.num == signal:
-            self._button_press(0)
-        elif (255-self.num) == signal:
             self._button_press(1)
+        elif (255-self.num) == signal:
+            self._button_press(0)
 
 
     def set_color(self,colors):
@@ -121,6 +126,8 @@ class Pin(object):
         else
             return datetime.now()-self.press_time
 
+    def add_observer(self,observer):
+        self._observers.append(observer)
 
     def _valid_color(self,color):
         """Takes the provided color or list of colors and returns a valid list of colors"""
@@ -152,5 +159,8 @@ class Pin(object):
             last_elapsed = (press_time-datetime.now()).seconds
             press_time = None
         self.button = newstate
-        # _fire_event('button',self.num,newstate)
+        self._fire_event('button',self.num,newstate)
                
+    def _fire_event(self,type,index,state):
+        for observer in self._observers:
+            observer(type,index,state)
