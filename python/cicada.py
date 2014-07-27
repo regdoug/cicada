@@ -27,12 +27,14 @@ class Cicada(object):
             self.pin[n].go_to(position,speed)
 
     
-    def zero(self):
+    def tare(self):
         """Tare the display heights"""
         self.serial.write(bytes([3,255]))
 
 
     def update(self,signal):
+        """Call this when you have a serial event.  The cicada module does not read from serial."""
+        # TODO: convert signal (a binary string) to a number.
         for n in range(self.num_pins):
             self.pin[n].update(signal)
 
@@ -108,6 +110,14 @@ class Pin(object):
         self.speed = speed
         cmd = 1 if self.position >= 0 else 2
         serial.write(bytes([cmd,self.num,position,speed,255]))
+
+    def press_seconds(self):
+        """Get the number of seconds the button has been pressed down for.
+        If the button is currently not pressed, return 0"""
+        if 0 == self.button:
+            return 0
+        else
+            return datetime.now()-self.press_time
 
 
     def _valid_color(self,color):
