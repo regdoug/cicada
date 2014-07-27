@@ -34,6 +34,8 @@ class Cicada(object):
 
     def update(self,signal):
         """Call this when you have a serial event.  The cicada module does not read from serial."""
+        if type(signal) == bytes:
+            signal = signal[0]
         # TODO: convert signal (a binary string) to a number.
         for n in range(self.num_pins):
             self.pin[n].update(signal)
