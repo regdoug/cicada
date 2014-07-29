@@ -5,25 +5,27 @@ from datetime import datetime
 class Cicada(object):
     """Stores the state of the CiCADA display and provides methods to manipulate it"""
 
-    def num_pins = 9
-    def led_per_pin = 4
+    num_pins = 9
+    led_per_pin = 4
+    
+    pin = []
 
     def __init__(self,serial):
         """Initialize display object connected to serial port"""
         self.serial = serial
         for n in range(self.num_pins):
-            self.pin[n] = Pin(n,self.led_per_pin,serial)
+            self.pin.append( Pin(n,self.led_per_pin,serial) )
 
 
     def set_all_colors(self,color):
         """Helper function to set all pins to the same color"""
-        for n in range(self.num_pins):
-            self.pin[n].set_color(color)
+        for pin in self.pin:
+            pin.set_color(color)
 
 
     def set_all_positions(self,position,speed):
         """Send all pins to 'position' at 'speed'"""
-        for pin in self.pins
+        for pin in self.pin:
             pin.go_to(position,speed)
     
     def tare(self):
@@ -40,15 +42,14 @@ class Cicada(object):
 
 
     def add_observer(self,observer):
-        for pin in self.pin:
-            pin.add_observer(observer) 
+        self.pin[0].add_observer(observer)
 
 
     def __getitem__(self,key):
         """Map index function to pins"""
         if type(key) != int:
             raise TypeError("Key should be an integer index")
-        elif not (0 <= key < self.num_pins):
+        elif not (-1 <= key < self.num_pins):
             raise IndexError("Key must be between 0 and %d exclusive"%self.num_pins)
         else:
             return self.pin[key]
@@ -66,20 +67,20 @@ class Cicada(object):
 class Pin(object):
     """Represents one pin of a CiCADA display"""
 
-    def num = 0
-    def serial = None
+    num = 0
+    serial = None
 
-    def position = 0
-    def speed = 0
-    def button = 0
+    position = 0
+    speed = 0
+    button = 0
 
-    def press_time = None
-    def last_elapsed = 0
+    press_time = None
+    last_elapsed = 0
 
-    def num_leds = 0
-    def led = []
+    num_leds = 0
+    led = []
 
-    def _observers = []
+    _observers = []
 
 
     def __init__(self,num,leds,serial):
@@ -88,7 +89,7 @@ class Pin(object):
         self.num_leds = leds
         self.serial = serial
         for n in range(leds):
-            led[n] = (0,0,0)
+            self.led.append((0,0,0))
 
 
     def update(self,signal):
@@ -107,7 +108,7 @@ class Pin(object):
         length = len(colors)
         for n in range(self.num_leds):
             color = self._valid_color_tuple(colors[n%length])
-            serial.write(bytes([0,(self.num*self.num_leds+n),color[0],color[1],color[2],255]))
+            self.serial.write(bytes([0,(self.num*self.num_leds+n),color[0],color[1],color[2],255]))
             self.led[n] = color
 
 
@@ -116,15 +117,15 @@ class Pin(object):
         self.position = position
         self.speed = speed
         cmd = 1 if self.position >= 0 else 2
-        serial.write(bytes([cmd,self.num,position,speed,255]))
+        self.serial.write(bytes([cmd,self.num,abs(position),speed,255]))
 
     def press_seconds(self):
         """Get the number of seconds the button has been pressed down for.
         If the button is currently not pressed, return 0"""
-        if 0 == self.button:
+        if 0 == self.button or self.press_time is None:
             return 0
-        else
-            return datetime.now()-self.press_time
+        else:
+            return (datetime.now()-self.press_time).seconds
 
     def add_observer(self,observer):
         self._observers.append(observer)
@@ -151,16 +152,20 @@ class Pin(object):
         else:
             return (0,0,0)
 
-     def _button_press(self,newstate):
-         """Updates self in response to a button state change"""
-         if 0 == newstate:
-            press_time = datetime.now()
+    def _button_press(self,newstate):
+        """Updates self in response to a button state change"""
+        print("Pin %d newstate %d"%(self.num,newstate))
+        if 1 == newstate:
+            self.press_time = datetime.now()
         else:
-            last_elapsed = (press_time-datetime.now()).seconds
-            press_time = None
+            if self.press_time is not None:
+                self.last_elapsed = (datetime.now()-self.press_time).seconds
+            else:
+                self.last_elapsed = 0
+            self.press_time = None
         self.button = newstate
         self._fire_event('button',self.num,newstate)
-               
+
     def _fire_event(self,type,index,state):
         for observer in self._observers:
             observer(type,index,state)
