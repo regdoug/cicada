@@ -114,6 +114,7 @@ class Pin(object):
 
     def go_to(self,position,speed):
         """Move the pin to new 'position' at 'speed'"""
+        print(self.num,self.position,self.speed)
         self.position = position
         self.speed = speed
         cmd = 1 if self.position >= 0 else 2

@@ -3,6 +3,8 @@ import serial
 from time import sleep
 from datetime import datetime
 import random as r
+import winsound
+import numpy
 
 
 class Simon(object):
@@ -14,6 +16,7 @@ class Simon(object):
     press_number = 0
     simon = []
     colors = [(0,0,254),(254,254,0),(0,254,0),(254,0,0),(254,254,254),(254,0,0),(0,254,0),(254,254,0),(0,0,254)]
+    beep_frequency = [200, 250, 300, 375, 450, 550, 650, 850, 1050]
     player = []
     
     def __init__(self):
@@ -24,7 +27,7 @@ class Simon(object):
         
     def add_on(self):
         print("adding on to simon")
-        i = r.randint(0,7)
+        i = r.randint(0,8)
         self.dt = datetime.now()
         self.simon.append(i)
         self.player.clear()
@@ -37,14 +40,17 @@ class Simon(object):
         sleep(0.5)
         for pin in self.simon:
             self.c[pin].set_color(self.colors[pin])
-            sleep(0.5)
+            winsound.Beep(self.beep_frequency[pin],500)
             self.dt = datetime.now()
             self.c[pin].set_color((0,0,0))
             sleep(0.15)
+            while self.ser.inWaiting()>0:
+                self.ser.read()
             
     def lose(self):
         print("lose")
         self.c.set_all_colors((254,0,0))
+        winsound.Beep(200,2000)
         self.dt = datetime.now()
         self.simon.clear()
         self.player.clear()
@@ -77,6 +83,7 @@ class Simon(object):
                 self.player.append(index)
                 if self.simon[self.press_number] == self.player[self.press_number]:
                     self.c[index].set_color(self.colors[index])
+                    winsound.Beep(self.beep_frequency[index],500)
                 if self.simon[self.press_number] != self.player[self.press_number]:
                     self.lose()
             else:
@@ -90,6 +97,11 @@ def main():
     s = Simon()
     press_number = 0
     
+    def shutdown():
+        for i in range(9):
+            s.c[i].go_to(0,205)
+            sleep(0.1)
+    
     try:
         while True:
             if s.ser.inWaiting()>0:
@@ -101,10 +113,14 @@ def main():
                 s.c[4].set_color((0,254,0))
                 s.red = False
                 s.new_game = True
-                            
-                if ((datetime.now()-s.dt).seconds)>2 and not s.new_game:
-                    print("You took too long!")
-                    s.lose()
+                                
+            if ((datetime.now()-s.dt).seconds)>2 and not s.new_game:
+                print("You took too long!")
+                s.lose()
+                
+            if s.c[6].press_seconds()>4 and s.c[8].press_seconds()>4:
+                shutdown()
+                break
                         
             sleep(0.01)
     finally:
