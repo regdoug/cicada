@@ -1,71 +1,117 @@
 """This module contains framework classes and methods for the Project CiCADA 3D interactive display"""
 
 from datetime import datetime
+from time import sleep
+import random as r
 
 class Cicada(object):
     """Stores the state of the CiCADA display and provides methods to manipulate it"""
 
-    num_pins = 9
-    led_per_pin = 4
+    num_Voxels = 9
+    led_per_Voxel = 4
+    num_leds = num_Voxels*led_per_Voxel
     
-    pin = []
+    Voxel = []
+    idx = []
 
     def __init__(self,serial):
         """Initialize display object connected to serial port"""
         self.serial = serial
-        for n in range(self.num_pins):
-            self.pin.append( Pin(n,self.led_per_pin,serial) )
+        for n in range(self.num_Voxels):
+            self.Voxel.append( Voxel(n,self.led_per_Voxel,serial) )
 
 
     def set_all_colors(self,color):
-        """Helper function to set all pins to the same color"""
-        for pin in self.pin:
-            pin.set_color(color)
+        """Helper function to set all Voxels to the same color"""
+        for Voxel in self.Voxel:
+            Voxel.set_color(color)
 
 
     def set_all_positions(self,position,speed):
-        """Send all pins to 'position' at 'speed'"""
-        for pin in self.pin:
-            pin.go_to(position,speed)
+        """Send all Voxels to 'position' at 'speed'"""
+        for Voxel in self.Voxel:
+            Voxel.go_to(position,speed)
     
     def tare(self):
         """Tare the display heights"""
         self.serial.write(bytes([3,255]))
+        
+            
+    def randomize_colors(self,num_Voxels):
+        """Give random colors to all leds"""
+        idx = list(range(self.num_Voxels))
+        r.shuffle(idx)
+        idx = idx[:num_Voxels]
+        for i in idx:
+            print(i)
+            colors = []
+            for n in range(self.num_leds):
+                colors.append((r.randint(0,1)*254,r.randint(0,1)*254,r.randint(0,1)*254))
+            self[i].set_color(colors)
+            self[i].set_color((0,0,0))
+            
+            
+    def random_flash(self,num_Voxels):
+        """Give random colors to all leds"""
+        idx = list(range(self.num_Voxels))
+        r.shuffle(idx)
+        idx = idx[:num_Voxels]
+        for i in idx:
+            self[i].set_color((254,254,254))
+            self[i].set_color((0,0,0))
 
+            
+    def random_sustain(self,num_Voxels):
+        """Give random colors to all leds"""
+        self.idx = []
+        idx = list(range(self.num_Voxels))
+        r.shuffle(idx)
+        idx = idx[:num_Voxels]
+        for i in idx:
+            self.idx.append(i)
+            self[i].set_color((254,254,254))
+            
+            
+    def clear_sustain(self):
+        """Give random colors to all leds"""
+        print(self.idx)
+        for i in self.idx:
+            self[i].set_color((0,0,0))
+            
 
     def update(self,signal):
         """Call this when you have a serial event.  The cicada module does not read from serial."""
         if type(signal) == bytes:
             signal = signal[0]
-        for pin in self.pin:
-            pin.update(signal)
+        for Voxel in self.Voxel:
+            Voxel.update(signal)
 
 
     def add_observer(self,observer):
-        self.pin[0].add_observer(observer)
+        self.Voxel[0].add_observer(observer)
 
 
     def __getitem__(self,key):
-        """Map index function to pins"""
+        """Map index function to Voxels"""
         if type(key) != int:
             raise TypeError("Key should be an integer index")
-        elif not (-1 <= key < self.num_pins):
-            raise IndexError("Key must be between 0 and %d exclusive"%self.num_pins)
+        elif not (-1 <= key < self.num_Voxels):
+            raise IndexError("Key must be between 0 and %d exclusive"%self.num_Voxels)
         else:
-            return self.pin[key]
+            return self.Voxel[key]
 
 
     def __iter(self):
-        return iter(self.pin)
+        return iter(self.Voxel)
 
 
     def keys(self):
         """For iterator support"""
-        return range(self.num_pins)
+        return range(self.num_Voxels)
 
 
-class Pin(object):
-    """Represents one pin of a CiCADA display"""
+class Voxel(object):
+    """Represents one Voxel of a CiCADA display"""
 
     num = 0
     serial = None
@@ -84,7 +130,7 @@ class Pin(object):
 
 
     def __init__(self,num,leds,serial):
-        """Initialize a pin with a specified index and number of leds"""
+        """Initialize a Voxel with a specified index and number of leds"""
         self.num = num
         self.num_leds = leds
         self.serial = serial
@@ -101,25 +147,26 @@ class Pin(object):
 
 
     def set_color(self,colors):
-        """Sets the led colors of the pin. The colors should be a tuple or list of tuples.
+        """Sets the led colors of the Voxel. The colors should be a tuple or list of tuples.
         If the list is shorter than the number of LEDs, the sequence will repeat until all
         LEDs have been assigned a new color.  If the sequence is too long, it will be truncated."""
         colors = self._valid_color(colors)
         length = len(colors)
         for n in range(self.num_leds):
             color = self._valid_color_tuple(colors[n%length])
-            self.serial.write(bytes([0,(self.num*self.num_leds+n),color[0],color[1],color[2],255]))
+            self.serial.write(bytes([0,(self.num*self.num_leds+n),int(color[0]),int(color[1]),int(color[2]),255]))
             self.led[n] = color
 
 
     def go_to(self,position,speed):
-        """Move the pin to new 'position' at 'speed'"""
+        """Move the Voxel to new 'position' at 'speed'"""
         print(self.num,self.position,self.speed)
         self.position = position
         self.speed = speed
         cmd = 1 if self.position >= 0 else 2
         self.serial.write(bytes([cmd,self.num,abs(position),speed,255]))
-
+        
+        
     def press_seconds(self):
         """Get the number of seconds the button has been pressed down for.
         If the button is currently not pressed, return 0"""
@@ -143,19 +190,19 @@ class Pin(object):
     def _valid_color_tuple(self,color):
         """Takes the provided color (hopefully a 3-element tuple) and converts it to a valid color"""
         if len(color) == 3:
-            if (0,0,0) <= color < (255,255,255):
+            if (0,0,0) <= color <= (256,256,256):
                 return color
             else:
                 c2 = list(color)
                 for i in range(3):
-                    c2[i] = max(0,min(color[i],254))
+                    c2[i] = max(0,min(color[i],256))
                 return tuple(c2)
         else:
             return (0,0,0)
 
     def _button_press(self,newstate):
         """Updates self in response to a button state change"""
-        print("Pin %d newstate %d"%(self.num,newstate))
+        print("Voxel %d newstate %d"%(self.num,newstate))
         if 1 == newstate:
             self.press_time = datetime.now()
         else:
